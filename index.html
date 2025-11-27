@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventaire Pharma GS1</title>
+    <!-- Styles Bootstrap -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Base de données locale -->
+    <script src="https://unpkg.com/dexie/dist/dexie.js"></script>
+    <!-- Scanner -->
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <link rel="manifest" href="manifest.json">
+    <style>
+        body { padding-bottom: 90px; background-color: #f8f9fa; }
+        .scanner-box { width: 100%; display: none; background: #000; border-radius: 10px; overflow: hidden; }
+        .offline-badge { position: fixed; top: 10px; right: 10px; z-index: 9999; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        .nav-bottom { position: fixed; bottom: 0; width: 100%; background: white; border-top: 1px solid #dee2e6; padding: 10px; display: flex; justify-content: space-around; z-index: 1000; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); }
+        .list-group-item-success { background-color: #d1e7dd !important; } /* Vert clair pour inventorié */
+        .card-header-custom { background-color: #0d6efd; color: white; padding: 15px; border-radius: 0 0 15px 15px; margin-bottom: 20px;}
+        .lot-badge { font-size: 0.85em; background: #e9ecef; padding: 2px 6px; border-radius: 4px; border: 1px solid #ced4da; }
+    </style>
+</head>
+<body>
+
+<!-- Badge Statut Réseau -->
+<div id="statusIndicator" class="badge bg-success offline-badge">En Ligne</div>
+
+<div class="container-fluid p-0">
+    <!-- En-tête -->
+    <div class="card-header-custom shadow-sm">
+        <h4 class="m-0">📦 Stock Pharma</h4>
+        <small>Inventaire & Gestion de Lots</small>
+    </div>
+
+    <div class="container">
+        <!-- Sélection Dépôt -->
+        <div class="mb-3">
+            <label class="form-label text-muted small">Dépôt Actif</label>
+            <select id="depotSelect" class="form-select fw-bold">
+                <option value="Depot_Principal">🏥 Dépôt Principal</option>
+                <option value="Depot_Secondaire">🚑 Dépôt Urgence/Secondaire</option>
+                <option value="Depot_Reserve">📦 Réserve</option>
+            </select>
+        </div>
+
+        <!-- Zone Scanner -->
+        <div id="reader" class="scanner-box mb-3"></div>
+
+        <!-- Barre Recherche & Scan -->
+        <div class="input-group mb-3 shadow-sm">
+            <input type="text" id="searchInput" class="form-control" placeholder="Nom, Code, Lot...">
+            <button class="btn btn-primary" onclick="startScanner()">📷 SCAN</button>
+        </div>
+
+        <!-- Liste des Produits -->
+        <div id="productList" class="list-group pb-3">
+            <div class="text-center text-muted mt-5">Chargement...</div>
+        </div>
+    </div>
+</div>
+
+<!-- Modale Édition -->
+<div class="modal fade" id="editModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-light">
+                <h5 class="modal-title">📝 Fiche Article</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="inventoryForm">
+                    <input type="hidden" id="itemId">
+                    
+                    <div class="mb-2">
+                        <label class="small text-muted">Désignation</label>
+                        <input type="text" id="modalDesignation" class="form-control fw-bold" readonly>
+                    </div>
+
+                    <div class="row g-2 mb-2">
+                        <div class="col-6">
+                            <label class="small text-muted">Lot (Batch)</label>
+                            <input type="text" id="modalLot" class="form-control font-monospace">
+                        </div>
+                        <div class="col-6">
+                            <label class="small text-muted">Péremption</label>
+                            <input type="date" id="modalDate" class="form-control">
+                        </div>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-5">
+                            <label class="small text-muted">Théorique</label>
+                            <input type="number" id="modalQteTheo" class="form-control bg-light" readonly>
+                        </div>
+                        <div class="col-7">
+                            <label class="small text-primary fw-bold">Physique (Compté)</label>
+                            <input type="number" id="modalQtePhys" class="form-control border-primary fw-bold" style="font-size: 1.2rem;" placeholder="0">
+                        </div>
+                    </div>
+
+                    <div class="mb-2">
+                        <label class="small text-muted">Codes Barres (séparés par virgule)</label>
+                        <textarea id="modalBarcodes" class="form-control small" rows="2"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-success px-4" onclick="saveItem()">💾 Enregistrer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Navigation Bas -->
+<div class="nav-bottom">
+    <button class="btn btn-light text-primary" onclick="renderList()"><span style="display:block;font-size:1.2rem">🏠</span>Liste</button>
+    <button class="btn btn-primary shadow" onclick="syncData()"><span style="display:block;font-size:1.2rem">🔄</span>Synchro</button>
+    <button class="btn btn-light text-secondary" onclick="addNewItem()"><span style="display:block;font-size:1.2rem">➕</span>Ajout</button>
+</div>
+
+<!-- SCRIPTS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+    // --- CONFIGURATION ---
+    // VOTRE URL GOOGLE SCRIPT :
+    const API_URL = "https://script.google.com/macros/s/AKfycbzzv4nwHUPuCRwaAcMRrTfEcOB40xJ8hxHhO6cAjxq3N2FSuZzNBhlvtmzKoMZEnQPp/exec";
+
+    // --- BASE DE DONNÉES LOCALE (Dexie) ---
+    const db = new Dexie("PharmaStockDB_V2"); // V2 pour forcer une mise à jour propre
+    db.version(1).stores({
+        products: "ID, Famille, Designation, Barcodes, NumeroLot, Depot"
+    });
+
+    let currentDepot = "Depot_Principal";
+    let html5QrcodeScanner = null;
+
+    // --- INITIALISATION ---
+    document.addEventListener('DOMContentLoaded', () => {
+        setupOfflineDetection();
+        loadDataLocal(); // Charge les données locales au démarrage
+        
+        // Ecouteur Changement Dépôt
+        document.getElementById('depotSelect').addEventListener('change', (e) => {
+            currentDepot = e.target.value;
+            renderList();
+        });
+
+        // Ecouteur Recherche Textuelle
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            renderList(e.target.value);
+        });
+    });
+
+    // --- LOGIQUE D'AFFICHAGE ---
+    async function loadDataLocal() {
+        const count = await db.products.count();
+        if (count === 0) {
+            document.getElementById('productList').innerHTML = `<div class="text-center mt-5"><p>Aucune donnée locale.</p><button class="btn btn-primary" onclick="syncData()">Télécharger le Stock depuis Google</button></div>`;
+        } else {
+            renderList();
+        }
+    }
+
+    async function renderList(filterText = "") {
+        const listEl = document.getElementById('productList');
+        listEl.innerHTML = "";
+
+        // Récupère tout le stock du dépôt sélectionné
+        let items = await db.products.where('Depot').equals(currentDepot).toArray();
+
+        // Filtre JS
+        if (filterText) {
+            const lowerFilter = filterText.toLowerCase();
+            items = items.filter(item => 
+                (item.Designation && item.Designation.toLowerCase().includes(lowerFilter)) ||
+                (item.NumeroLot && item.NumeroLot.toLowerCase().includes(lowerFilter)) ||
+                (item.Barcodes && item.Barcodes.includes(filterText))
+            );
+        }
+
+        if (items.length === 0) {
+            listEl.innerHTML = `<div class="text-center text-muted mt-4">Aucun produit trouvé dans ce dépôt.</div>`;
+            return;
+        }
+
+        // Construction HTML
+        items.forEach(item => {
+            // Est-ce que le produit a été compté ?
+            const isCounted = (item.QtePhysique !== "" && item.QtePhysique !== null && item.QtePhysique !== undefined);
+            const bgClass = isCounted ? "list-group-item-success" : "";
+            const statusIcon = isCounted ? "✅" : "📦";
+            
+            const html = `
+                <a href="#" class="list-group-item list-group-item-action ${bgClass}" onclick="openEditModal('${item.ID}')">
+                    <div class="d-flex w-100 justify-content-between">
+                        <h6 class="mb-1 text-truncate" style="max-width: 70%;">${item.Designation}</h6>
+                        <small class="text-muted">${item.Unite || ''}</small>
+                    </div>
+                    <div class="mb-1">
+                        <span class="lot-badge">Lot: ${item.NumeroLot || 'N/A'}</span> 
+                        <small class="text-muted">Exp: ${formatDate(item.DatePeremption)}</small>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-end mt-2">
+                        <small class="text-muted">Théo: ${item.QteTheorique}</small>
+                        <span class="badge ${isCounted ? 'bg-success' : 'bg-secondary'} rounded-pill" style="font-size:1em">
+                            Phys: ${item.QtePhysique !== undefined && item.QtePhysique !== "" ? item.QtePhysique : '?'}
+                        </span>
+                    </div>
+                </a>
+            `;
+            listEl.innerHTML += html;
+        });
+    }
+
+    // --- MODALE & SAUVEGARDE ---
+    async function openEditModal(id) {
+        const item = await db.products.get(id);
+        if(!item) return;
+
+        document.getElementById('itemId').value = item.ID;
+        document.getElementById('modalDesignation').value = item.Designation;
+        document.getElementById('modalLot').value = item.NumeroLot;
+        
+        let dateVal = item.DatePeremption ? new Date(item.DatePeremption).toISOString().split('T')[0] : "";
+        document.getElementById('modalDate').value = dateVal;
+        
+        document.getElementById('modalQteTheo').value = item.QteTheorique;
+        document.getElementById('modalQtePhys').value = item.QtePhysique;
+        document.getElementById('modalBarcodes').value = item.Barcodes;
+
+        // Focus sur le champ quantité physique pour saisie rapide
+        setTimeout(() => document.getElementById('modalQtePhys').focus(), 500);
+
+        new bootstrap.Modal(document.getElementById('editModal')).show();
+    }
+
+    async function addNewItem() {
+        const newId = "NEW_" + Date.now(); 
+        const newItem = {
+            ID: newId,
+            Designation: "Nouveau Médicament",
+            Depot: currentDepot,
+            QteTheorique: 0,
+            QtePhysique: "",
+            Barcodes: "",
+            NumeroLot: "",
+            Famille: "NON CLASSE"
+        };
+        await db.products.put(newItem);
+        openEditModal(newId);
+    }
+
+    async function saveItem() {
+        const id = document.getElementById('itemId').value;
+        const item = await db.products.get(id);
+
+        if(item) {
+            item.QtePhysique = document.getElementById('modalQtePhys').value;
+            item.NumeroLot = document.getElementById('modalLot').value;
+            item.DatePeremption = document.getElementById('modalDate').value;
+            item.Barcodes = document.getElementById('modalBarcodes').value;
+            
+            await db.products.put(item);
+            
+            const modalEl = document.getElementById('editModal');
+            bootstrap.Modal.getInstance(modalEl).hide();
+            
+            renderList();
+        }
+    }
+
+    // --- SCANNER & PARSING GS1 ---
+
+    // Fonction GS1 : Convertit AAMMJJ -> AAAA-MM-JJ
+    function parseGS1Date(gDate) {
+        if (!gDate || gDate.length !== 6) return "";
+        let year = parseInt(gDate.substring(0, 2));
+        const month = gDate.substring(2, 4);
+        const day = gDate.substring(4, 6);
+        year += (year > 50) ? 1900 : 2000;
+        const cleanDay = (day === "00") ? "28" : day; 
+        return `${year}-${month}-${cleanDay}`;
+    }
+
+    // Fonction GS1 : Extrait GTIN, Lot, Date
+    function parseBarcodeGS1(scannedString) {
+        let result = { gtin: null, lot: null, expiry: null };
+        let cleanCode = scannedString.replace(/\(/g, '').replace(/\)/g, '');
+
+        // GTIN (01)
+        const gtinMatch = cleanCode.match(/(?:01)(\d{14})/);
+        if (gtinMatch) result.gtin = gtinMatch[1];
+
+        // Date (17)
+        const dateMatch = cleanCode.match(/17(\d{6})/);
+        if (dateMatch) result.expiry = parseGS1Date(dateMatch[1]);
+
+        // Lot (10) - Regex simplifiée
+        const lotMatch = cleanCode.match(/10([A-Za-z0-9\-\.]+)/);
+        if (lotMatch) {
+            let rawLot = lotMatch[1];
+            // Si le lot est suivi d'une date (17...), on coupe avant
+            const dateIndex = rawLot.indexOf('17');
+            if (dateIndex > -1 && rawLot.length - dateIndex >= 8) {
+                rawLot = rawLot.substring(0, dateIndex);
+            }
+            result.lot = rawLot;
+        }
+        return result;
+    }
+
+    function startScanner() {
+        document.getElementById('reader').style.display = "block";
+        html5QrcodeScanner = new Html5Qrcode("reader");
+        
+        const config = {
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+            formatsToSupport: [ 
+                Html5QrcodeSupportedFormats.QR_CODE,
+                Html5QrcodeSupportedFormats.EAN_13,
+                Html5QrcodeSupportedFormats.EAN_8,
+                Html5QrcodeSupportedFormats.CODE_128,
+                Html5QrcodeSupportedFormats.DATAMATRIX
+            ]
+        };
+
+        html5QrcodeScanner.start({ facingMode: "environment" }, config,
+            (decodedText) => handleScan(decodedText),
+            (errorMessage) => {} // Ignorer les erreurs de frame vide
+        );
+    }
+
+    async function handleScan(code) {
+        if(html5QrcodeScanner) {
+            await html5QrcodeScanner.stop();
+            document.getElementById('reader').style.display = "none";
+        }
+
+        console.log("Scan:", code);
+        const gs1Data = parseBarcodeGS1(code);
+        let searchCode = code;
+
+        // Si GTIN détecté (GS1), on l'utilise pour la recherche
+        if (gs1Data.gtin) {
+            // Enlève le 0 de tête pour matcher CIP13
+            searchCode = gs1Data.gtin.startsWith('0') ? gs1Data.gtin.substring(1) : gs1Data.gtin;
+        }
+
+        document.getElementById('searchInput').value = searchCode;
+
+        // Recherche BDD
+        const allItems = await db.products.where('Depot').equals(currentDepot).toArray();
+        let found = allItems.find(i => i.Barcodes && i.Barcodes.includes(searchCode));
+
+        // Fallback: recherche code brut
+        if (!found && searchCode !== code) {
+             found = allItems.find(i => i.Barcodes && i.Barcodes.includes(code));
+        }
+
+        if(found) {
+            await openEditModal(found.ID);
+            // Auto-fill Lot et Date si présents dans le code GS1
+            if (gs1Data.lot) {
+                document.getElementById('modalLot').value = gs1Data.lot;
+                document.getElementById('modalLot').classList.add('bg-warning', 'bg-opacity-25'); // Highlight visuel
+            }
+            if (gs1Data.expiry) {
+                document.getElementById('modalDate').value = gs1Data.expiry;
+                document.getElementById('modalDate').classList.add('bg-warning', 'bg-opacity-25');
+            }
+        } else {
+            if(confirm(`Produit inconnu dans ${currentDepot}.\nCode: ${searchCode}\n\nCréer ?`)) {
+                await addNewItem();
+                setTimeout(() => {
+                    document.getElementById('modalBarcodes').value = searchCode;
+                    if (gs1Data.lot) document.getElementById('modalLot').value = gs1Data.lot;
+                    if (gs1Data.expiry) document.getElementById('modalDate').value = gs1Data.expiry;
+                }, 500);
+            }
+        }
+    }
+
+    // --- SYNCHRONISATION ---
+    async function syncData() {
+        const btn = document.querySelector('.nav-bottom .btn-primary');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = "⏳...";
+        btn.disabled = true;
+
+        try {
+            // 1. PUSH : Envoi des données locales vers Google Sheet
+            // On envoie tout pour mise à jour simple (Attention: écrase le sheet si conflits complexes)
+            const allLocalData = await db.products.toArray();
+            
+            // Pour le push, on utilise 'no-cors' car Google ne renvoie pas de JSON lisible facilement sans redirection
+            // C'est du "Fire and Forget"
+            await fetch(API_URL, {
+                method: 'POST',
+                mode: 'no-cors', 
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(allLocalData)
+            });
+
+            // 2. PULL : Récupération des données fraîches
+            // On attend 2 secondes pour que le Script Google finisse d'écrire
+            await new Promise(r => setTimeout(r, 2000));
+
+            const response = await fetch(API_URL);
+            if (!response.ok) throw new Error("Erreur réseau Google");
+            
+            const cloudData = await response.json();
+
+            // Remplacement de la base locale
+            await db.products.clear();
+            await db.products.bulkPut(cloudData);
+
+            alert(`✅ Synchro OK !\n${cloudData.length} produits chargés.`);
+            renderList();
+
+        } catch (error) {
+            console.error(error);
+            alert("❌ Erreur de synchronisation.\nVérifiez votre connexion internet.");
+        } finally {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+    }
+
+    // --- UTILS ---
+    function setupOfflineDetection() {
+        const badge = document.getElementById('statusIndicator');
+        const update = () => {
+            if (navigator.onLine) {
+                badge.className = "badge bg-success offline-badge";
+                badge.innerText = "En Ligne";
+            } else {
+                badge.className = "badge bg-danger offline-badge";
+                badge.innerText = "Hors Ligne";
+            }
+        };
+        window.addEventListener('online', update);
+        window.addEventListener('offline', update);
+        update();
+    }
+
+    function formatDate(dateStr) {
+        if (!dateStr) return "";
+        const d = new Date(dateStr);
+        return isNaN(d.getTime()) ? dateStr : d.toLocaleDateString('fr-FR');
+    }
+
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('./service-worker.js');
+    }
+</script>
+</body>
+</html>
