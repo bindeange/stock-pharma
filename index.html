@@ -2,140 +2,176 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pharma PWA Expert</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pharma Stock Pro</title>
+    
+    <!-- CSS Bootstrap -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Librairies JS -->
     <script src="https://unpkg.com/dexie/dist/dexie.js"></script>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    
     <link rel="manifest" href="manifest.json">
+    
     <style>
-        body { padding-bottom: 100px; background-color: #f0f2f5; }
-        .header-app { background: linear-gradient(135deg, #0d6efd, #0a58ca); color: white; padding: 15px; border-radius: 0 0 20px 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .scanner-box { width: 100%; display: none; background: #000; border-radius: 10px; margin-bottom: 10px; overflow: hidden; }
-        .filter-section { background: white; padding: 15px; border-radius: 10px; margin-top: -20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-        .product-card { border: none; border-left: 5px solid transparent; margin-bottom: 10px; transition: transform 0.2s; }
-        .product-card.done { border-left-color: #198754; background-color: #f8fffb; }
-        .product-card.todo { border-left-color: #ffc107; }
-        .offline-badge { position: fixed; top: 10px; right: 10px; z-index: 9999; }
-        .nav-bottom { position: fixed; bottom: 0; width: 100%; background: white; border-top: 1px solid #dee2e6; padding: 10px; display: flex; justify-content: space-around; z-index: 1000; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); }
-        .big-input { font-size: 1.3rem; font-weight: bold; text-align: center; }
+        body { padding-bottom: 110px; background-color: #f4f6f8; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        
+        /* En-tête */
+        .header-app { background: linear-gradient(135deg, #0d6efd, #0043a8); color: white; padding: 15px 15px 30px 15px; border-radius: 0 0 20px 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
+        
+        /* Zone de filtres */
+        .filter-section { background: white; padding: 15px; border-radius: 12px; margin-top: -25px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); border: 1px solid #eef2f5; }
+        
+        /* Scanner */
+        .scanner-box { width: 100%; display: none; background: #000; border-radius: 12px; overflow: hidden; margin-bottom: 15px; border: 2px solid #333; }
+        
+        /* Carte Produit */
+        .product-card { border: none; border-radius: 10px; margin-bottom: 12px; transition: transform 0.1s; background: white; box-shadow: 0 2px 5px rgba(0,0,0,0.03); border-left: 5px solid #dee2e6; }
+        .product-card:active { transform: scale(0.98); }
+        .product-card.done { border-left-color: #198754; background-color: #f6fffa; } /* Vert si fait */
+        .product-card.todo { border-left-color: #ffc107; } /* Jaune si à faire */
+        
+        /* Badges et Textes */
+        .lot-badge { font-family: monospace; background: #e9ecef; padding: 2px 6px; border-radius: 4px; font-size: 0.85em; }
+        .offline-badge { position: fixed; top: 10px; right: 10px; z-index: 9999; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        
+        /* Navigation Bas */
+        .nav-bottom { position: fixed; bottom: 0; width: 100%; background: white; border-top: 1px solid #e0e0e0; padding: 12px 10px; display: flex; justify-content: space-around; z-index: 1000; box-shadow: 0 -4px 15px rgba(0,0,0,0.05); }
+        .nav-btn { display: flex; flex-direction: column; align-items: center; border: none; background: none; font-size: 0.75rem; color: #6c757d; font-weight: 500; }
+        .nav-btn.active { color: #0d6efd; }
+        .nav-icon { font-size: 1.4rem; margin-bottom: 2px; }
+        
+        /* Inputs Modale */
+        .big-input { font-size: 1.5rem; font-weight: 800; text-align: center; color: #0d6efd; height: 60px; }
     </style>
 </head>
 <body>
 
-<!-- Badge Statut -->
+<!-- Badge Statut Réseau -->
 <div id="statusIndicator" class="badge bg-success offline-badge">En Ligne</div>
 
 <!-- En-tête -->
-<div class="header-app pb-5">
-    <h4 class="m-0 fw-bold">📦 Gestion Stock</h4>
-    <small id="totalCountInfo">Chargement...</small>
+<div class="header-app">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h4 class="m-0 fw-bold">📦 Stock Pharma</h4>
+            <small class="opacity-75" id="totalCountInfo">Chargement...</small>
+        </div>
+        <div class="spinner-border text-light spinner-border-sm" id="syncSpinner" style="display:none"></div>
+    </div>
 </div>
 
-<div class="container">
-    <!-- Section Filtres (Le cœur du flux de travail) -->
-    <div class="filter-section mx-2 mb-3">
+<div class="container mb-5">
+    
+    <!-- Filtres (Dépôt & Famille) -->
+    <div class="filter-section mx-1 mb-3">
         <div class="row g-2">
             <div class="col-6">
-                <label class="small text-muted fw-bold">1. DÉPÔT</label>
-                <select id="depotSelect" class="form-select form-select-sm">
-                    <option value="Depot_Principal">Principal</option>
-                    <option value="Depot_Secondaire">Secondaire</option>
-                    <option value="Depot_Reserve">Réserve</option>
+                <label class="small text-muted fw-bold text-uppercase">1. Dépôt</label>
+                <select id="depotSelect" class="form-select form-select-sm fw-bold border-primary">
+                    <option value="Depot_Principal">🏥 Principal</option>
+                    <option value="Depot_Secondaire">🚑 Urgence</option>
+                    <option value="Depot_Reserve">📦 Réserve</option>
                 </select>
             </div>
             <div class="col-6">
-                <label class="small text-muted fw-bold">2. FAMILLE</label>
+                <label class="small text-muted fw-bold text-uppercase">2. Famille</label>
                 <select id="familySelect" class="form-select form-select-sm">
-                    <option value="ALL">Toutes les familles</option>
-                    <!-- Rempli dynamiquement -->
+                    <option value="ALL">📂 Tout voir</option>
+                    <!-- Sera rempli par JS -->
                 </select>
             </div>
         </div>
     </div>
 
-    <!-- Barre Recherche & Scan -->
+    <!-- Scanner & Recherche -->
+    <div id="reader" class="scanner-box"></div>
+    
     <div class="input-group mb-3 shadow-sm">
-        <input type="text" id="searchInput" class="form-control" placeholder="🔍 Rechercher (Nom, Code...)">
+        <span class="input-group-text bg-white border-end-0">🔍</span>
+        <input type="text" id="searchInput" class="form-control border-start-0" placeholder="Rechercher (Nom, code...)">
         <button class="btn btn-dark" onclick="startScanner()">📷 SCAN</button>
     </div>
 
-    <div id="reader" class="scanner-box"></div>
-
     <!-- Liste Produits -->
-    <div id="productList" class="pb-3">
-        <!-- Les cartes produits s'affichent ici -->
+    <div id="productList" class="pb-2">
+        <div class="text-center mt-5 text-muted">
+            <div class="spinner-border text-primary mb-3"></div>
+            <p>Chargement de la base...</p>
+        </div>
     </div>
 </div>
 
-<!-- MODALE FICHE PRODUIT COMPLETE -->
+<!-- MODALE FICHE PRODUIT -->
 <div class="modal fade" id="productModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content">
-            <div class="modal-header bg-light">
-                <h5 class="modal-title text-primary fw-bold">📝 Fiche Produit</h5>
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-light py-2">
+                <h6 class="modal-title fw-bold text-primary">📝 Édition Produit</h6>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body p-3">
                 <form id="inventoryForm">
                     <input type="hidden" id="itemId">
                     
-                    <!-- Bloc Infos Fixes -->
-                    <div class="p-2 bg-light rounded mb-3 border">
-                        <div class="row g-2">
-                            <div class="col-12">
-                                <label class="small text-muted">Désignation (DCI)</label>
-                                <input type="text" id="modalDesignation" class="form-control fw-bold" placeholder="Nom du produit">
-                            </div>
-                            <div class="col-6">
-                                <label class="small text-muted">Famille</label>
-                                <input type="text" id="modalFamille" class="form-control form-control-sm">
-                            </div>
-                            <div class="col-6">
-                                <label class="small text-muted">Unité</label>
-                                <input type="text" id="modalUnite" class="form-control form-control-sm">
-                            </div>
-                        </div>
+                    <!-- Titre Produit -->
+                    <div class="mb-3">
+                        <label class="small text-muted">Désignation (DCI)</label>
+                        <input type="text" id="modalDesignation" class="form-control fw-bold text-dark" style="background:#f8f9fa;">
                     </div>
 
-                    <!-- Bloc Lot & Date -->
+                    <!-- Ligne Famille / Unité -->
                     <div class="row g-2 mb-3">
-                        <div class="col-6">
-                            <label class="fw-bold text-dark">Numéro Lot</label>
-                            <input type="text" id="modalLot" class="form-control font-monospace bg-white border-warning">
+                        <div class="col-7">
+                            <label class="small text-muted">Famille</label>
+                            <select id="modalFamille" class="form-select form-select-sm">
+                                <option value="NON CLASSE">NON CLASSE</option>
+                                <!-- Sera rempli dynamiquement -->
+                            </select>
                         </div>
-                        <div class="col-6">
-                            <label class="fw-bold text-dark">Péremption</label>
-                            <input type="date" id="modalDate" class="form-control border-warning">
-                        </div>
-                    </div>
-
-                    <!-- Bloc Stock (Le cœur de l'inventaire) -->
-                    <div class="row g-2 align-items-end mb-3 p-3 border border-primary rounded bg-white">
                         <div class="col-5">
-                            <label class="small text-muted">Stock Théorique</label>
-                            <input type="number" id="modalQteTheo" class="form-control text-muted" placeholder="0">
-                        </div>
-                        <div class="col-7 text-center">
-                            <label class="fw-bold text-primary mb-1">STOCK PHYSIQUE</label>
-                            <input type="number" id="modalQtePhys" class="form-control big-input border-primary" placeholder="0">
+                            <label class="small text-muted">Unité</label>
+                            <input type="text" id="modalUnite" class="form-control form-control-sm">
                         </div>
                     </div>
 
-                    <!-- Bloc Codes Barres -->
-                    <div class="mb-2">
-                        <label class="small text-muted">Codes Barres (Ajouter ou Scanner)</label>
-                        <div class="input-group">
-                            <input type="text" id="modalBarcodes" class="form-control form-control-sm">
-                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="alert('Pour ajouter un code, scannez-le ou écrivez-le à la suite avec une virgule.')">ℹ️</button>
+                    <!-- Ligne Lot / Date -->
+                    <div class="card bg-light border-0 p-2 mb-3">
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <label class="small fw-bold text-dark">N° Lot</label>
+                                <input type="text" id="modalLot" class="form-control font-monospace border-warning">
+                            </div>
+                            <div class="col-6">
+                                <label class="small fw-bold text-dark">Péremption</label>
+                                <input type="date" id="modalDate" class="form-control border-warning">
+                            </div>
                         </div>
-                        <small class="text-muted" style="font-size: 0.7rem;">Séparez les codes multiples par des virgules.</small>
+                    </div>
+
+                    <!-- Zone Comptage -->
+                    <div class="row g-2 align-items-center mb-3">
+                        <div class="col-5 text-center">
+                            <label class="small text-muted">Théorique</label>
+                            <input type="number" id="modalQteTheo" class="form-control text-center bg-white border-0" readonly tabindex="-1">
+                        </div>
+                        <div class="col-7">
+                            <label class="small fw-bold text-primary w-100 text-center">QUANTITÉ PHYSIQUE</label>
+                            <input type="number" id="modalQtePhys" class="form-control big-input border-primary shadow-sm" placeholder="0">
+                        </div>
+                    </div>
+
+                    <!-- Codes Barres -->
+                    <div class="mt-3 pt-3 border-top">
+                        <label class="small text-muted">Codes Barres (Séparés par virgule)</label>
+                        <textarea id="modalBarcodes" class="form-control form-control-sm text-muted" rows="1"></textarea>
                     </div>
                 </form>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                <button type="button" class="btn btn-primary fw-bold px-4" onclick="saveItem()">💾 VALIDER</button>
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-primary fw-bold px-4" onclick="saveItem()">💾 ENREGISTRER</button>
             </div>
         </div>
     </div>
@@ -143,21 +179,35 @@
 
 <!-- Navigation Bas -->
 <div class="nav-bottom">
-    <button class="btn btn-light text-secondary" onclick="addNewItem()">➕ Créer Produit</button>
-    <button class="btn btn-primary shadow fw-bold px-4" onclick="syncData()">🔄 SYNCHRONISER</button>
-    <div class="text-muted small align-self-center" id="lastSyncTime"></div>
+    <button class="nav-btn" onclick="addNewItem()">
+        <span class="nav-icon">➕</span>
+        <span>Nouveau</span>
+    </button>
+    
+    <!-- Bouton Synchro Central -->
+    <button class="btn btn-primary rounded-pill px-4 shadow fw-bold" onclick="syncData()">
+        🔄 SYNCHRO
+    </button>
+    
+    <button class="nav-btn" onclick="location.reload()">
+        <span class="nav-icon">🏠</span>
+        <span>Accueil</span>
+    </button>
 </div>
 
 <!-- SCRIPTS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
-    // --- CONFIGURATION ---
-    // URL DE VOTRE SCRIPT GOOGLE :
+    // ============================================================
+    // 1. CONFIGURATION
+    // ============================================================
+    
+    // 👇 COLLEZ VOTRE URL GOOGLE APPS SCRIPT ICI 👇
     const API_URL = "https://script.google.com/macros/s/AKfycbzzv4nwHUPuCRwaAcMRrTfEcOB40xJ8hxHhO6cAjxq3N2FSuZzNBhlvtmzKoMZEnQPp/exec";
 
-    // --- BDD Locale ---
-    const db = new Dexie("PharmaStockDB_V3"); // V3 pour structure propre
+    // Base de données locale (IndexedDB via Dexie)
+    const db = new Dexie("PharmaStockDB_Expert");
     db.version(1).stores({
         products: "ID, Famille, Designation, Barcodes, NumeroLot, Depot"
     });
@@ -165,13 +215,16 @@
     let currentDepot = "Depot_Principal";
     let currentFamily = "ALL";
     let html5QrcodeScanner = null;
+    let allFamiliesList = [];
 
-    // --- INITIALISATION ---
+    // ============================================================
+    // 2. INITIALISATION
+    // ============================================================
     document.addEventListener('DOMContentLoaded', () => {
         setupOfflineDetection();
-        loadDataLocal();
+        loadDataLocal(); // Charge les données au démarrage
 
-        // Ecouteurs de filtres
+        // Ecouteurs
         document.getElementById('depotSelect').addEventListener('change', (e) => {
             currentDepot = e.target.value;
             renderList();
@@ -185,56 +238,62 @@
         });
     });
 
-    // --- LOGIQUE METIER ---
-
-    // 1. Charger et Analyser les données pour les filtres
+    // ============================================================
+    // 3. AFFICHAGE & FILTRES
+    // ============================================================
     async function loadDataLocal() {
         const count = await db.products.count();
-        document.getElementById('totalCountInfo').innerText = `${count} références en mémoire`;
+        document.getElementById('totalCountInfo').innerText = `${count} refs en stock`;
         
         if (count > 0) {
             await updateFamilyDropdown();
             renderList();
         } else {
-            document.getElementById('productList').innerHTML = 
-                `<div class="text-center mt-5 p-4"><p class="text-muted">Aucune donnée.</p>
-                <button class="btn btn-primary" onclick="syncData()">📥 Télécharger la base Google Sheet</button></div>`;
+            document.getElementById('productList').innerHTML = `
+                <div class="text-center mt-5 p-4 bg-white rounded shadow-sm mx-3">
+                    <h4>👋 Bienvenue</h4>
+                    <p class="text-muted">Votre base est vide.</p>
+                    <button class="btn btn-primary btn-lg w-100" onclick="syncData()">📥 Télécharger le Stock</button>
+                </div>`;
         }
     }
 
-    // 2. Mettre à jour la liste des Familles (dynamique)
     async function updateFamilyDropdown() {
-        const allItems = await db.products.where('Depot').equals(currentDepot).toArray();
-        // Extraction des familles uniques
+        // Récupère toutes les familles distinctes pour le filtre
+        const allItems = await db.products.toArray();
         const families = [...new Set(allItems.map(item => item.Famille || "NON CLASSE"))].sort();
-        
+        allFamiliesList = families;
+
+        // Mise à jour select principal
         const select = document.getElementById('familySelect');
-        // Sauvegarde de la sélection actuelle si possible
         const oldVal = select.value;
-        
-        select.innerHTML = '<option value="ALL">Toutes les familles</option>';
+        select.innerHTML = '<option value="ALL">📂 Tout voir</option>';
         families.forEach(fam => {
-            if(fam.trim() !== "") {
-                select.innerHTML += `<option value="${fam}">${fam}</option>`;
-            }
+            if(fam.trim() !== "") select.innerHTML += `<option value="${fam}">${fam}</option>`;
         });
-        select.value = "ALL"; // Reset par défaut ou remettre oldVal si vous préférez
+        select.value = "ALL";
+
+        // Mise à jour select dans la Modale
+        const modalSelect = document.getElementById('modalFamille');
+        modalSelect.innerHTML = '<option value="NON CLASSE">NON CLASSE</option>';
+        families.forEach(fam => {
+             modalSelect.innerHTML += `<option value="${fam}">${fam}</option>`;
+        });
     }
 
-    // 3. Afficher la liste (Inventaire)
     async function renderList(filterText = "") {
         const listEl = document.getElementById('productList');
         listEl.innerHTML = "";
 
-        // Etape A: Filtre Dépôt
+        // Etape A : Filtre Dépôt
         let items = await db.products.where('Depot').equals(currentDepot).toArray();
 
-        // Etape B: Filtre Famille
+        // Etape B : Filtre Famille
         if (currentFamily !== "ALL") {
             items = items.filter(i => i.Famille === currentFamily);
         }
 
-        // Etape C: Recherche Texte / Code Barre
+        // Etape C : Recherche Texte
         if (filterText) {
             const lowerFilter = filterText.toLowerCase();
             items = items.filter(item => 
@@ -244,75 +303,84 @@
             );
         }
 
-        // Affichage
         if (items.length === 0) {
-            listEl.innerHTML = `<div class="text-center text-muted mt-4">Aucun produit ne correspond aux filtres.</div>`;
+            listEl.innerHTML = `<div class="text-center text-muted mt-5 opacity-50">Aucun produit trouvé.</div>`;
             return;
         }
 
+        // Génération HTML Optimisée
+        const fragment = document.createDocumentFragment();
         items.forEach(item => {
-            // Statut: Vert si compté, Orange si à faire
             const isDone = (item.QtePhysique !== "" && item.QtePhysique !== null && item.QtePhysique !== undefined);
             const cardClass = isDone ? "done" : "todo";
             const valPhys = isDone ? item.QtePhysique : '...';
-
-            const html = `
-                <div class="card product-card ${cardClass} shadow-sm" onclick="openEditModal('${item.ID}')">
-                    <div class="card-body py-2 px-3">
-                        <div class="d-flex justify-content-between align-items-center mb-1">
-                            <h6 class="card-title m-0 fw-bold text-truncate" style="max-width: 80%;">${item.Designation}</h6>
-                            <span class="badge bg-light text-dark border">${item.Unite || 'U'}</span>
-                        </div>
-                        <div class="d-flex justify-content-between small text-muted mb-2">
-                            <span>Lot: <b class="text-dark">${item.NumeroLot || '-'}</b></span>
-                            <span>Exp: ${formatDate(item.DatePeremption)}</span>
-                        </div>
-                        <div class="d-flex justify-content-between align-items-center pt-2 border-top">
-                            <span class="text-muted small">Théo: <b>${item.QteTheorique}</b></span>
-                            <div class="${isDone ? 'text-success' : 'text-secondary'} fw-bold" style="font-size:1.1rem">
-                                Phys: ${valPhys}
-                            </div>
+            
+            const div = document.createElement('div');
+            div.className = `card product-card ${cardClass}`;
+            div.onclick = () => openEditModal(item.ID);
+            div.innerHTML = `
+                <div class="card-body p-3">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h6 class="card-title m-0 fw-bold text-dark" style="line-height:1.4">${item.Designation}</h6>
+                        <span class="badge bg-white text-secondary border ms-2">${item.Unite || 'U'}</span>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between small text-muted mb-3">
+                        <div>Lot: <span class="lot-badge text-dark">${item.NumeroLot || '-'}</span></div>
+                        <div>Exp: ${formatDate(item.DatePeremption)}</div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between align-items-center pt-2 border-top">
+                        <div class="text-muted small">Théo: <strong>${item.QteTheorique}</strong></div>
+                        <div class="${isDone ? 'text-success' : 'text-secondary'} fw-bold fs-5">
+                            Phys: ${valPhys}
                         </div>
                     </div>
                 </div>
             `;
-            listEl.innerHTML += html;
+            fragment.appendChild(div);
         });
+        listEl.appendChild(fragment);
     }
 
-    // --- MODALE & EDITION ---
+    // ============================================================
+    // 4. MODALE & EDITION
+    // ============================================================
     async function openEditModal(id) {
         const item = await db.products.get(id);
         if(!item) return;
 
         document.getElementById('itemId').value = item.ID;
         document.getElementById('modalDesignation').value = item.Designation;
-        document.getElementById('modalFamille').value = item.Famille;
         document.getElementById('modalUnite').value = item.Unite;
         document.getElementById('modalLot').value = item.NumeroLot;
+        
         let dateVal = item.DatePeremption ? new Date(item.DatePeremption).toISOString().split('T')[0] : "";
         document.getElementById('modalDate').value = dateVal;
         
         document.getElementById('modalQteTheo').value = item.QteTheorique;
         document.getElementById('modalQtePhys').value = item.QtePhysique;
         document.getElementById('modalBarcodes').value = item.Barcodes;
-
-        // Si on a un scanner actif qui a déclenché l'ouverture, on peut ajouter le code automatiquement si besoin
-        // (Logique simplifiée ici)
+        
+        // Gestion Select Famille (ajout dynamique si nouvelle famille)
+        const modalSel = document.getElementById('modalFamille');
+        if (![...modalSel.options].some(o => o.value === item.Famille)) {
+            modalSel.innerHTML += `<option value="${item.Famille}">${item.Famille}</option>`;
+        }
+        modalSel.value = item.Famille;
 
         const modal = new bootstrap.Modal(document.getElementById('productModal'));
         modal.show();
         
-        // Focus auto sur la quantité physique
+        // Focus auto
         setTimeout(() => document.getElementById('modalQtePhys').focus(), 500);
     }
 
     async function addNewItem() {
-        // Mode création: On demande à l'utilisateur de remplir la base
         const newId = "NEW_" + Date.now(); 
         const newItem = {
             ID: newId,
-            Designation: "", // Vide pour forcer la saisie
+            Designation: "", 
             Famille: currentFamily !== "ALL" ? currentFamily : "DIVERS",
             Depot: currentDepot,
             QteTheorique: 0,
@@ -323,9 +391,6 @@
         };
         await db.products.put(newItem);
         openEditModal(newId);
-        
-        // Petit message pour guider
-        setTimeout(() => document.getElementById('modalDesignation').focus(), 600);
     }
 
     async function saveItem() {
@@ -333,44 +398,124 @@
         const item = await db.products.get(id);
 
         if(item) {
-            // On met à jour TOUTES les infos (Gestion + Inventaire)
             item.Designation = document.getElementById('modalDesignation').value;
             item.Famille = document.getElementById('modalFamille').value;
             item.Unite = document.getElementById('modalUnite').value;
             item.NumeroLot = document.getElementById('modalLot').value;
             item.DatePeremption = document.getElementById('modalDate').value;
-            item.QteTheorique = document.getElementById('modalQteTheo').value; // Actualisation Théo possible
             item.QtePhysique = document.getElementById('modalQtePhys').value;
             item.Barcodes = document.getElementById('modalBarcodes').value;
             
             await db.products.put(item);
             
-            // Fermeture et rafraichissement
             const modalEl = document.getElementById('productModal');
             bootstrap.Modal.getInstance(modalEl).hide();
             
-            // Si la famille a changé, on met à jour le dropdown
-            updateFamilyDropdown();
+            updateFamilyDropdown(); // Au cas où la famille change
             renderList();
         }
     }
 
-    // --- SCANNER GS1 INTELLIGENT ---
+    // ============================================================
+    // 5. SYNCHRONISATION (CORRIGÉE : FORCE LE TELECHARGEMENT)
+    // ============================================================
+    async function syncData() {
+        const btn = document.querySelector('.btn-primary.rounded-pill');
+        const spinner = document.getElementById('syncSpinner');
+        const originalText = btn.innerHTML;
+        
+        btn.innerHTML = "⏳ Envoi...";
+        btn.disabled = true;
+        spinner.style.display = 'block';
+
+        try {
+            // 1. PUSH (Envoi local vers Google)
+            const allLocalData = await db.products.toArray();
+            await fetch(API_URL, {
+                method: 'POST', 
+                mode: 'no-cors', 
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(allLocalData)
+            });
+
+            // 2. DELAI DE TRAITEMENT
+            btn.innerHTML = "📥 Réception...";
+            await new Promise(r => setTimeout(r, 2500)); // 2.5s pour être sûr
+
+            // 3. PULL (Réception avec Anti-Cache)
+            // L'ajout de ?t=... force le navigateur à ne pas utiliser le cache
+            const response = await fetch(API_URL + "?t=" + Date.now());
+            
+            if (!response.ok) throw new Error("Erreur réseau Google");
+            
+            const rawData = await response.json();
+            
+            if (!Array.isArray(rawData)) throw new Error("Format de données invalide");
+
+            // 4. NETTOYAGE & REMPLACEMENT
+            // Fonction pour trouver une clé insensible à la casse (Id, ID, id...)
+            const cleanData = rawData.map(item => {
+                const getKey = (keyName) => Object.keys(item).find(k => k.toLowerCase() === keyName.toLowerCase());
+                
+                return {
+                    ID: item[getKey("id")] || ("GEN_" + Math.random()), 
+                    Famille: item[getKey("famille")] || "NON CLASSE",
+                    Designation: item[getKey("designation")] || "Inconnu",
+                    Unite: item[getKey("unite")] || "U",
+                    Barcodes: String(item[getKey("barcodes")] || ""),
+                    NumeroLot: String(item[getKey("numerolot")] || ""),
+                    DatePeremption: item[getKey("dateperemption")] || "",
+                    QteTheorique: item[getKey("qtetheorique")] || 0,
+                    QtePhysique: item[getKey("qtephysique")], 
+                    Depot: item[getKey("depot")] || "Depot_Principal" 
+                };
+            });
+
+            // On remplace tout
+            await db.products.clear();
+            await db.products.bulkPut(cleanData);
+
+            // Refresh UI
+            await loadDataLocal();
+            document.getElementById('familySelect').value = "ALL";
+            currentFamily = "ALL";
+            renderList();
+
+            alert(`✅ Synchronisation Réussie !\n\n📦 Stock Google importé : ${cleanData.length} produits.`);
+
+        } catch (error) {
+            console.error(error);
+            alert("❌ Erreur de Synchro :\n" + error.message);
+        } finally {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+            spinner.style.display = 'none';
+        }
+    }
+
+    // ============================================================
+    // 6. SCANNER INTELLIGENT (GS1)
+    // ============================================================
     function parseGS1(code) {
-        // Même logique que précédemment (DataMatrix)
         let res = { gtin: null, lot: null, exp: null };
         let clean = code.replace(/[\(\)]/g, '');
-        let mGtin = clean.match(/(?:01)(\d{14})/); if(mGtin) res.gtin = mGtin[1];
-        let mDate = clean.match(/17(\d{6})/); if(mDate) res.exp = parseGS1Date(mDate[1]);
+        
+        let mGtin = clean.match(/(?:01)(\d{14})/); 
+        if(mGtin) res.gtin = mGtin[1];
+        
+        let mDate = clean.match(/17(\d{6})/); 
+        if(mDate) res.exp = parseGS1Date(mDate[1]);
+        
         let mLot = clean.match(/10([A-Za-z0-9\-\.]+)/); 
         if(mLot) {
             let l = mLot[1];
-            let idx = l.indexOf('17');
+            let idx = l.indexOf('17'); // Si date suit le lot sans séparateur
             if(idx > -1 && l.length - idx >= 8) l = l.substring(0, idx);
             res.lot = l;
         }
         return res;
     }
+    
     function parseGS1Date(d) {
         if(!d || d.length !== 6) return "";
         let y = parseInt(d.substring(0,2)); y += (y>50?1900:2000);
@@ -381,44 +526,44 @@
     function startScanner() {
         document.getElementById('reader').style.display = "block";
         html5QrcodeScanner = new Html5Qrcode("reader");
-        html5QrcodeScanner.start({ facingMode: "environment" }, {fps:10, qrbox:250},
-            async (code) => {
-                await html5QrcodeScanner.stop();
-                document.getElementById('reader').style.display = "none";
-                handleScan(code);
-            },
-            () => {}
-        );
+        const config = { fps: 10, qrbox: 250, formatsToSupport: [0,1,2,3,4,5,6,7,8,9,10,11,12,13] }; // Support All
+        
+        html5QrcodeScanner.start({ facingMode: "environment" }, config, async (code) => {
+            await html5QrcodeScanner.stop();
+            document.getElementById('reader').style.display = "none";
+            handleScan(code);
+        });
     }
 
     async function handleScan(code) {
         const gs1 = parseGS1(code);
         let search = gs1.gtin ? (gs1.gtin.startsWith('0')?gs1.gtin.substring(1):gs1.gtin) : code;
         
-        // On remplit la barre de recherche
         document.getElementById('searchInput').value = search;
         
-        // Recherche globale dans le dépôt (même si famille masquée)
+        // Recherche Globale (peu importe le filtre famille)
         const allItems = await db.products.where('Depot').equals(currentDepot).toArray();
         let found = allItems.find(i => i.Barcodes && i.Barcodes.includes(search));
         
+        if(!found && search !== code) found = allItems.find(i => i.Barcodes && i.Barcodes.includes(code));
+
         if(found) {
-            // Si trouvé mais dans une autre famille, on bascule la vue
-            if (currentFamily !== "ALL" && found.Famille !== currentFamily) {
-                if(confirm(`Produit trouvé dans la famille "${found.Famille}". Basculer la vue ?`)) {
-                    document.getElementById('familySelect').value = found.Famille;
-                    currentFamily = found.Famille;
-                    renderList();
-                }
+            // Si le produit est dans une famille masquée, on change le filtre
+            if(currentFamily !== "ALL" && found.Famille !== currentFamily) {
+                 document.getElementById('familySelect').value = found.Famille;
+                 currentFamily = found.Famille;
+                 renderList();
             }
-            // Ouverture fiche
+            
             await openEditModal(found.ID);
-            // Auto-fill Lot/Date
+            
             if(gs1.lot) document.getElementById('modalLot').value = gs1.lot;
             if(gs1.exp) document.getElementById('modalDate').value = gs1.exp;
             
+            // Effet visuel
+            document.getElementById('modalQtePhys').classList.add('bg-warning', 'bg-opacity-25');
         } else {
-            if(confirm(`Nouveau produit ou code inconnu : ${search}\nL'ajouter maintenant ?`)) {
+            if(confirm(`Nouveau produit : ${search}\nL'ajouter maintenant ?`)) {
                 await addNewItem();
                 setTimeout(() => {
                     document.getElementById('modalBarcodes').value = search;
@@ -429,45 +574,31 @@
         }
     }
 
-    // --- SYNCHRONISATION ---
-    async function syncData() {
-        const btn = document.querySelector('.nav-bottom .btn-primary');
-        const oldTxt = btn.innerHTML;
-        btn.innerHTML = "⏳ Envoi...";
-        btn.disabled = true;
-
-        try {
-            // 1. Envoi
-            const all = await db.products.toArray();
-            await fetch(API_URL, {
-                method: 'POST', mode: 'no-cors',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(all)
-            });
-
-            // 2. Attente & Réception
-            btn.innerHTML = "📥 Réception...";
-            await new Promise(r => setTimeout(r, 2000));
-            
-            const res = await fetch(API_URL);
-            const data = await res.json();
-            
-            await db.products.clear();
-            await db.products.bulkPut(data);
-            
-            alert(`✅ Synchronisation réussie !\n${data.length} produits mis à jour.`);
-            loadDataLocal(); // Recharge les familles et la liste
-
-        } catch(e) {
-            alert("Erreur Sync : " + e);
-        } finally {
-            btn.innerHTML = oldTxt;
-            btn.disabled = false;
-        }
+    // ============================================================
+    // 7. UTILS
+    // ============================================================
+    function setupOfflineDetection() {
+        const badge = document.getElementById('statusIndicator');
+        const update = () => {
+            if (navigator.onLine) {
+                badge.className = "badge bg-success offline-badge";
+                badge.innerText = "En Ligne";
+            } else {
+                badge.className = "badge bg-danger offline-badge";
+                badge.innerText = "Hors Ligne";
+            }
+        };
+        window.addEventListener('online', update);
+        window.addEventListener('offline', update);
+        update();
     }
 
-    function setupOfflineDetection() { /* Même code que précédement */ }
-    function formatDate(d) { if(!d) return ""; return new Date(d).toLocaleDateString('fr-FR'); }
+    function formatDate(d) { 
+        if(!d) return ""; 
+        const date = new Date(d);
+        return isNaN(date) ? d : date.toLocaleDateString('fr-FR');
+    }
+
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js');
 </script>
 </body>
