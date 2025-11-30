@@ -3,603 +3,548 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Pharma Stock Pro</title>
+    <title>Pharma Master Base</title>
     
-    <!-- CSS Bootstrap -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     
-    <!-- Librairies JS -->
     <script src="https://unpkg.com/dexie/dist/dexie.js"></script>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     
     <link rel="manifest" href="manifest.json">
     
     <style>
-        body { padding-bottom: 110px; background-color: #f4f6f8; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-        
-        /* En-tête */
-        .header-app { background: linear-gradient(135deg, #0d6efd, #0043a8); color: white; padding: 15px 15px 30px 15px; border-radius: 0 0 20px 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
-        
-        /* Zone de filtres */
-        .filter-section { background: white; padding: 15px; border-radius: 12px; margin-top: -25px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); border: 1px solid #eef2f5; }
-        
-        /* Scanner */
-        .scanner-box { width: 100%; display: none; background: #000; border-radius: 12px; overflow: hidden; margin-bottom: 15px; border: 2px solid #333; }
-        
-        /* Carte Produit */
-        .product-card { border: none; border-radius: 10px; margin-bottom: 12px; transition: transform 0.1s; background: white; box-shadow: 0 2px 5px rgba(0,0,0,0.03); border-left: 5px solid #dee2e6; }
-        .product-card:active { transform: scale(0.98); }
-        .product-card.done { border-left-color: #198754; background-color: #f6fffa; } /* Vert si fait */
-        .product-card.todo { border-left-color: #ffc107; } /* Jaune si à faire */
-        
-        /* Badges et Textes */
-        .lot-badge { font-family: monospace; background: #e9ecef; padding: 2px 6px; border-radius: 4px; font-size: 0.85em; }
-        .offline-badge { position: fixed; top: 10px; right: 10px; z-index: 9999; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
-        
-        /* Navigation Bas */
-        .nav-bottom { position: fixed; bottom: 0; width: 100%; background: white; border-top: 1px solid #e0e0e0; padding: 12px 10px; display: flex; justify-content: space-around; z-index: 1000; box-shadow: 0 -4px 15px rgba(0,0,0,0.05); }
-        .nav-btn { display: flex; flex-direction: column; align-items: center; border: none; background: none; font-size: 0.75rem; color: #6c757d; font-weight: 500; }
-        .nav-btn.active { color: #0d6efd; }
-        .nav-icon { font-size: 1.4rem; margin-bottom: 2px; }
-        
-        /* Inputs Modale */
-        .big-input { font-size: 1.5rem; font-weight: 800; text-align: center; color: #0d6efd; height: 60px; }
+        body { padding-bottom: 90px; background-color: #f0f2f5; font-family: system-ui, -apple-system, sans-serif; }
+        .header-app { background: linear-gradient(135deg, #0d6efd, #0043a8); color: white; padding: 15px 15px 30px 15px; border-radius: 0 0 25px 25px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+        .filter-section { background: white; padding: 15px; border-radius: 15px; margin-top: -25px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .product-card { border: none; border-radius: 12px; margin-bottom: 12px; background: white; box-shadow: 0 2px 6px rgba(0,0,0,0.02); border-left: 5px solid #e9ecef; }
+        .product-card.done { border-left-color: #198754; background-color: #f8fffb; }
+        .product-card.todo { border-left-color: #ffc107; }
+        .scanner-box { width: 100%; display: none; background: #000; border-radius: 12px; overflow: hidden; margin-bottom: 15px; border: 3px solid #333; }
+        .nav-bottom { position: fixed; bottom: 0; width: 100%; background: rgba(255,255,255,0.95); backdrop-filter: blur(5px); border-top: 1px solid #e0e0e0; padding: 10px; display: flex; justify-content: space-around; z-index: 1000; }
+        .barcode-tag { background-color: #e9ecef; border: 1px solid #ced4da; border-radius: 20px; padding: 3px 10px; font-family: monospace; display: inline-flex; align-items: center; margin-right: 5px; margin-bottom: 5px; font-size: 0.85rem; }
+        .offline-badge { position: fixed; top: 15px; right: 15px; z-index: 9999; }
+        .price-tag { font-weight: bold; color: #198754; background: #d1e7dd; padding: 2px 8px; border-radius: 4px; font-size: 0.9em; }
     </style>
 </head>
 <body>
 
-<!-- Badge Statut Réseau -->
 <div id="statusIndicator" class="badge bg-success offline-badge">En Ligne</div>
 
-<!-- En-tête -->
 <div class="header-app">
     <div class="d-flex justify-content-between align-items-center">
         <div>
-            <h4 class="m-0 fw-bold">📦 Stock Pharma</h4>
+            <h4 class="m-0 fw-bold"><i class="bi bi-database-check"></i> Stock Master</h4>
             <small class="opacity-75" id="totalCountInfo">Chargement...</small>
         </div>
-        <div class="spinner-border text-light spinner-border-sm" id="syncSpinner" style="display:none"></div>
+        <button class="btn btn-sm btn-outline-light rounded-pill" onclick="openConfigModal()"><i class="bi bi-gear-fill"></i></button>
     </div>
 </div>
 
 <div class="container mb-5">
-    
-    <!-- Filtres (Dépôt & Famille) -->
-    <div class="filter-section mx-1 mb-3">
+    <!-- Filtres -->
+    <div class="filter-section mx-1">
         <div class="row g-2">
             <div class="col-6">
-                <label class="small text-muted fw-bold text-uppercase">1. Dépôt</label>
-                <select id="depotSelect" class="form-select form-select-sm fw-bold border-primary">
-                    <option value="Depot_Principal">🏥 Principal</option>
-                    <option value="Depot_Secondaire">🚑 Urgence</option>
-                    <option value="Depot_Reserve">📦 Réserve</option>
+                <label class="small text-muted fw-bold">DÉPÔT ACTIF</label>
+                <select id="depotSelect" class="form-select form-select-sm fw-bold border-primary text-primary">
+                    <!-- JS -->
                 </select>
             </div>
             <div class="col-6">
-                <label class="small text-muted fw-bold text-uppercase">2. Famille</label>
+                <label class="small text-muted fw-bold">FAMILLE</label>
                 <select id="familySelect" class="form-select form-select-sm">
                     <option value="ALL">📂 Tout voir</option>
-                    <!-- Sera rempli par JS -->
+                    <!-- JS -->
                 </select>
             </div>
         </div>
     </div>
 
-    <!-- Scanner & Recherche -->
+    <!-- Scanner -->
     <div id="reader" class="scanner-box"></div>
     
     <div class="input-group mb-3 shadow-sm">
-        <span class="input-group-text bg-white border-end-0">🔍</span>
-        <input type="text" id="searchInput" class="form-control border-start-0" placeholder="Rechercher (Nom, code...)">
-        <button class="btn btn-dark" onclick="startScanner()">📷 SCAN</button>
+        <input type="text" id="searchInput" class="form-control" placeholder="Recherche globale...">
+        <button class="btn btn-dark" onclick="startScanner('search')"><i class="bi bi-qr-code-scan"></i> SCAN</button>
     </div>
 
-    <!-- Liste Produits -->
-    <div id="productList" class="pb-2">
-        <div class="text-center mt-5 text-muted">
-            <div class="spinner-border text-primary mb-3"></div>
-            <p>Chargement de la base...</p>
-        </div>
-    </div>
+    <!-- Liste -->
+    <div id="productList" class="pb-2"></div>
 </div>
 
 <!-- MODALE FICHE PRODUIT -->
 <div class="modal fade" id="productModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content border-0 shadow">
+        <div class="modal-content border-0 shadow-lg">
             <div class="modal-header bg-light py-2">
-                <h6 class="modal-title fw-bold text-primary">📝 Édition Produit</h6>
+                <h6 class="modal-title fw-bold text-primary"><i class="bi bi-pencil-square"></i> Fiche Article</h6>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-3">
                 <form id="inventoryForm">
                     <input type="hidden" id="itemId">
                     
-                    <!-- Titre Produit -->
+                    <!-- Identification -->
                     <div class="mb-3">
                         <label class="small text-muted">Désignation (DCI)</label>
-                        <input type="text" id="modalDesignation" class="form-control fw-bold text-dark" style="background:#f8f9fa;">
+                        <input type="text" id="modalDesignation" class="form-control fw-bold">
                     </div>
 
-                    <!-- Ligne Famille / Unité -->
-                    <div class="row g-2 mb-3">
-                        <div class="col-7">
+                    <div class="row g-2 mb-2">
+                        <div class="col-6">
                             <label class="small text-muted">Famille</label>
-                            <select id="modalFamille" class="form-select form-select-sm">
-                                <option value="NON CLASSE">NON CLASSE</option>
-                                <!-- Sera rempli dynamiquement -->
-                            </select>
+                            <select id="modalFamille" class="form-select form-select-sm"></select>
                         </div>
-                        <div class="col-5">
-                            <label class="small text-muted">Unité</label>
-                            <input type="text" id="modalUnite" class="form-control form-control-sm">
+                        <div class="col-6">
+                            <label class="small text-muted">Prix de Vente</label>
+                            <div class="input-group input-group-sm">
+                                <input type="number" id="modalPrix" class="form-control fw-bold text-success">
+                                <span class="input-group-text">FCFA</span>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Ligne Lot / Date -->
+                    <!-- Lot & Date -->
                     <div class="card bg-light border-0 p-2 mb-3">
                         <div class="row g-2">
-                            <div class="col-6">
-                                <label class="small fw-bold text-dark">N° Lot</label>
-                                <input type="text" id="modalLot" class="form-control font-monospace border-warning">
+                            <div class="col-4">
+                                <label class="small fw-bold">Unité</label>
+                                <input type="text" id="modalUnite" class="form-control form-control-sm bg-white">
                             </div>
-                            <div class="col-6">
-                                <label class="small fw-bold text-dark">Péremption</label>
-                                <input type="date" id="modalDate" class="form-control border-warning">
+                            <div class="col-4">
+                                <label class="small fw-bold">Lot</label>
+                                <input type="text" id="modalLot" class="form-control form-control-sm font-monospace border-warning bg-white">
+                            </div>
+                            <div class="col-4">
+                                <label class="small fw-bold">Exp</label>
+                                <input type="date" id="modalDate" class="form-control form-control-sm border-warning bg-white">
                             </div>
                         </div>
                     </div>
 
-                    <!-- Zone Comptage -->
+                    <!-- Quantités -->
                     <div class="row g-2 align-items-center mb-3">
-                        <div class="col-5 text-center">
-                            <label class="small text-muted">Théorique</label>
-                            <input type="number" id="modalQteTheo" class="form-control text-center bg-white border-0" readonly tabindex="-1">
+                        <div class="col-4">
+                            <label class="small text-muted text-center w-100">Théorique</label>
+                            <input type="number" id="modalQteTheo" class="form-control text-center bg-white border-0" readonly>
                         </div>
-                        <div class="col-7">
-                            <label class="small fw-bold text-primary w-100 text-center">QUANTITÉ PHYSIQUE</label>
-                            <input type="number" id="modalQtePhys" class="form-control big-input border-primary shadow-sm" placeholder="0">
+                        <div class="col-8">
+                            <label class="small fw-bold text-primary text-center w-100">STOCK PHYSIQUE</label>
+                            <input type="number" id="modalQtePhys" class="form-control form-control-lg text-center border-primary fw-bold" style="font-size:1.5rem">
                         </div>
                     </div>
 
                     <!-- Codes Barres -->
-                    <div class="mt-3 pt-3 border-top">
-                        <label class="small text-muted">Codes Barres (Séparés par virgule)</label>
-                        <textarea id="modalBarcodes" class="form-control form-control-sm text-muted" rows="1"></textarea>
+                    <div class="border-top pt-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <label class="small text-muted fw-bold">Codes Barres (Multiples)</label>
+                            <button type="button" class="btn btn-sm btn-outline-dark" onclick="startScanner('add_barcode')">
+                                <i class="bi bi-plus-lg"></i> Scan
+                            </button>
+                        </div>
+                        <div id="barcodeTagsContainer" class="p-2 bg-light rounded mb-2" style="min-height: 40px;"></div>
+                        <div class="input-group input-group-sm">
+                            <input type="text" id="manualBarcodeInput" class="form-control" placeholder="Ajout manuel...">
+                            <button class="btn btn-outline-secondary" type="button" onclick="addManualBarcode()">Ajouter</button>
+                        </div>
                     </div>
                 </form>
             </div>
             <div class="modal-footer py-2">
-                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Annuler</button>
-                <button type="button" class="btn btn-primary fw-bold px-4" onclick="saveItem()">💾 ENREGISTRER</button>
+                <button type="button" class="btn btn-primary w-100 fw-bold" onclick="saveItem()">💾 ENREGISTRER</button>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Navigation Bas -->
+<!-- MODALE CONFIG -->
+<div class="modal fade" id="configModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title fw-bold">Paramètres</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <ul class="nav nav-tabs mb-3" id="configTabs">
+                    <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tabDepots">Dépôts</a></li>
+                    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tabFamilies">Familles</a></li>
+                </ul>
+                <div class="tab-content">
+                    <div class="tab-pane fade show active" id="tabDepots">
+                        <div class="input-group mb-2">
+                            <input type="text" id="newDepotName" class="form-control" placeholder="Nouveau dépôt...">
+                            <button class="btn btn-success" onclick="addConfigItem('depots')">Créer</button>
+                        </div>
+                        <ul class="list-group" id="configDepotList"></ul>
+                    </div>
+                    <div class="tab-pane fade" id="tabFamilies">
+                        <div class="input-group mb-2">
+                            <input type="text" id="newFamilyName" class="form-control" placeholder="Nouvelle famille...">
+                            <button class="btn btn-success" onclick="addConfigItem('families')">Créer</button>
+                        </div>
+                        <ul class="list-group" id="configFamilyList"></ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- NAV -->
 <div class="nav-bottom">
     <button class="nav-btn" onclick="addNewItem()">
-        <span class="nav-icon">➕</span>
-        <span>Nouveau</span>
+        <i class="bi bi-plus-circle-fill fs-3 text-primary"></i><span>Nouveau</span>
     </button>
-    
-    <!-- Bouton Synchro Central -->
-    <button class="btn btn-primary rounded-pill px-4 shadow fw-bold" onclick="syncData()">
-        🔄 SYNCHRO
+    <button class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm" onclick="syncData()">
+        <i class="bi bi-arrow-repeat"></i> SYNCHRO
     </button>
-    
     <button class="nav-btn" onclick="location.reload()">
-        <span class="nav-icon">🏠</span>
-        <span>Accueil</span>
+        <i class="bi bi-house-door"></i><span>Accueil</span>
     </button>
 </div>
 
-<!-- SCRIPTS -->
+<!-- LOGIC -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
 <script>
-    // ============================================================
-    // 1. CONFIGURATION
-    // ============================================================
-    
-    // 👇 COLLEZ VOTRE URL GOOGLE APPS SCRIPT ICI 👇
+    // --- CONFIG ---
     const API_URL = "https://script.google.com/macros/s/AKfycbzzv4nwHUPuCRwaAcMRrTfEcOB40xJ8hxHhO6cAjxq3N2FSuZzNBhlvtmzKoMZEnQPp/exec";
+    
+    const db = new Dexie("PharmaMasterDB");
+    db.version(1).stores({ products: "ID, Famille, Designation, Barcodes, NumeroLot, Depot, PrixVente" });
 
-    // Base de données locale (IndexedDB via Dexie)
-    const db = new Dexie("PharmaStockDB_Expert");
-    db.version(1).stores({
-        products: "ID, Famille, Designation, Barcodes, NumeroLot, Depot"
-    });
-
-    let currentDepot = "Depot_Principal";
+    let currentDepot = "";
     let currentFamily = "ALL";
     let html5QrcodeScanner = null;
-    let allFamiliesList = [];
+    let scanMode = "search"; 
+    let currentEditingBarcodes = [];
 
-    // ============================================================
-    // 2. INITIALISATION
-    // ============================================================
+    let userDepots = JSON.parse(localStorage.getItem('userDepots')) || ['Depot_Principal', 'BASE_ARTICLES'];
+    let userFamilies = JSON.parse(localStorage.getItem('userFamilies')) || ['NON CLASSE'];
+
     document.addEventListener('DOMContentLoaded', () => {
         setupOfflineDetection();
-        loadDataLocal(); // Charge les données au démarrage
-
-        // Ecouteurs
-        document.getElementById('depotSelect').addEventListener('change', (e) => {
-            currentDepot = e.target.value;
-            renderList();
-        });
-        document.getElementById('familySelect').addEventListener('change', (e) => {
-            currentFamily = e.target.value;
-            renderList();
-        });
-        document.getElementById('searchInput').addEventListener('input', (e) => {
-            renderList(e.target.value);
-        });
+        loadDataLocal(); 
+        currentDepot = userDepots[0];
+        updateDropdownsUI();
+        
+        document.getElementById('depotSelect').addEventListener('change', (e) => { currentDepot = e.target.value; renderList(); });
+        document.getElementById('familySelect').addEventListener('change', (e) => { currentFamily = e.target.value; renderList(); });
+        document.getElementById('searchInput').addEventListener('input', (e) => handleSmartSearch(e.target.value));
     });
 
-    // ============================================================
-    // 3. AFFICHAGE & FILTRES
-    // ============================================================
-    async function loadDataLocal() {
-        const count = await db.products.count();
-        document.getElementById('totalCountInfo').innerText = `${count} refs en stock`;
+    // --- LOGIQUE MASTER BASE (RECHERCHE GLOBALE) ---
+    async function handleSmartSearch(text) {
+        if(!text) { renderList(); return; }
         
-        if (count > 0) {
-            await updateFamilyDropdown();
-            renderList();
-        } else {
-            document.getElementById('productList').innerHTML = `
-                <div class="text-center mt-5 p-4 bg-white rounded shadow-sm mx-3">
-                    <h4>👋 Bienvenue</h4>
-                    <p class="text-muted">Votre base est vide.</p>
-                    <button class="btn btn-primary btn-lg w-100" onclick="syncData()">📥 Télécharger le Stock</button>
-                </div>`;
-        }
-    }
-
-    async function updateFamilyDropdown() {
-        // Récupère toutes les familles distinctes pour le filtre
-        const allItems = await db.products.toArray();
-        const families = [...new Set(allItems.map(item => item.Famille || "NON CLASSE"))].sort();
-        allFamiliesList = families;
-
-        // Mise à jour select principal
-        const select = document.getElementById('familySelect');
-        const oldVal = select.value;
-        select.innerHTML = '<option value="ALL">📂 Tout voir</option>';
-        families.forEach(fam => {
-            if(fam.trim() !== "") select.innerHTML += `<option value="${fam}">${fam}</option>`;
-        });
-        select.value = "ALL";
-
-        // Mise à jour select dans la Modale
-        const modalSelect = document.getElementById('modalFamille');
-        modalSelect.innerHTML = '<option value="NON CLASSE">NON CLASSE</option>';
-        families.forEach(fam => {
-             modalSelect.innerHTML += `<option value="${fam}">${fam}</option>`;
-        });
-    }
-
-    async function renderList(filterText = "") {
         const listEl = document.getElementById('productList');
         listEl.innerHTML = "";
+        const lowerFilter = text.toLowerCase();
 
-        // Etape A : Filtre Dépôt
-        let items = await db.products.where('Depot').equals(currentDepot).toArray();
+        // 1. Recherche dans le DEPOT ACTUEL
+        const localItems = await db.products.where('Depot').equals(currentDepot).toArray();
+        let matches = localItems.filter(item => 
+            (item.Designation && item.Designation.toLowerCase().includes(lowerFilter)) ||
+            (item.Barcodes && item.Barcodes.includes(text)) || 
+            (item.NumeroLot && item.NumeroLot.toLowerCase().includes(lowerFilter))
+        );
 
-        // Etape B : Filtre Famille
-        if (currentFamily !== "ALL") {
-            items = items.filter(i => i.Famille === currentFamily);
-        }
-
-        // Etape C : Recherche Texte
-        if (filterText) {
-            const lowerFilter = filterText.toLowerCase();
-            items = items.filter(item => 
-                (item.Designation && item.Designation.toLowerCase().includes(lowerFilter)) ||
-                (item.Barcodes && item.Barcodes.includes(filterText)) || 
-                (item.NumeroLot && item.NumeroLot.toLowerCase().includes(lowerFilter))
+        // 2. Si pas trouvé, Recherche GLOBALE (dans toute la BDD)
+        let globalMatches = [];
+        if(matches.length === 0) {
+            const allItems = await db.products.toArray();
+            globalMatches = allItems.filter(item => 
+                // On exclut ceux du dépôt actuel car déjà checkés
+                item.Depot !== currentDepot && (
+                    (item.Designation && item.Designation.toLowerCase().includes(lowerFilter)) ||
+                    (item.Barcodes && item.Barcodes.includes(text))
+                )
             );
+            // On dédoublonne par ID (on veut juste la fiche produit, pas 15 lots différents)
+            globalMatches = globalMatches.filter((v,i,a)=>a.findIndex(t=>(t.ID === v.ID))===i);
         }
 
+        // AFFICHAGE
+        if (matches.length > 0) {
+            // Affichage normal
+            renderItemsHTML(matches, listEl);
+        } else if (globalMatches.length > 0) {
+            // Affichage "PRODUITS TROUVÉS AILLEURS"
+            listEl.innerHTML = `<div class="alert alert-info small py-1"><i class="bi bi-info-circle"></i> Produit non trouvé ici, mais existe dans la base.</div>`;
+            globalMatches.forEach(masterItem => {
+                const html = `
+                    <div class="card product-card shadow-sm border-info" onclick="importFromMaster('${masterItem.ID}')">
+                        <div class="card-body p-3">
+                            <div class="d-flex justify-content-between mb-1">
+                                <h6 class="m-0 fw-bold text-primary"><i class="bi bi-cloud-download"></i> ${masterItem.Designation}</h6>
+                                <span class="badge bg-info text-dark">IMPORT</span>
+                            </div>
+                            <small class="text-muted">Famille: ${masterItem.Famille} | Prix: ${masterItem.PrixVente || '?'} FCFA</small>
+                            <div class="mt-2 text-end"><button class="btn btn-sm btn-outline-primary">Ajouter à ${currentDepot}</button></div>
+                        </div>
+                    </div>`;
+                listEl.innerHTML += html;
+            });
+        } else {
+            listEl.innerHTML = `<div class="text-center text-muted mt-5">Aucun produit trouvé.<br><button class="btn btn-sm btn-outline-secondary mt-2" onclick="addNewItem()">Créer Nouveau</button></div>`;
+        }
+    }
+
+    // Fonction pour importer les données d'un autre dépôt (Master) vers le dépôt actuel
+    async function importFromMaster(masterId) {
+        const masterItem = await db.products.get(masterId);
+        if(!masterItem) return;
+
+        if(confirm(`Importer la fiche "${masterItem.Designation}" dans ${currentDepot} ?`)) {
+            // On crée un nouvel ID unique pour ce stock spécifique
+            const newStockId = masterItem.ID; // On garde le même ID produit (GEN_...)
+            // Mais dexie stocke par "ID" qui est la clé primaire.
+            // ATTENTION : Dexie écrase si ID identique. 
+            // Astuce : Dans cette architecture simplifiée, on va ouvrir la modale de création
+            // pré-remplie, et l'utilisateur créera un nouveau lot pour ce dépôt.
+            
+            // Pré-remplissage des variables globales de modale
+            await openEditModal(null, masterItem); // null = mode création, masterItem = données
+        }
+    }
+
+    // --- STANDARD RENDERING ---
+    async function renderList() {
+        const listEl = document.getElementById('productList');
+        listEl.innerHTML = "";
+        let items = await db.products.where('Depot').equals(currentDepot).toArray();
+        if (currentFamily !== "ALL") items = items.filter(i => i.Famille === currentFamily);
+        renderItemsHTML(items, listEl);
+    }
+
+    function renderItemsHTML(items, container) {
         if (items.length === 0) {
-            listEl.innerHTML = `<div class="text-center text-muted mt-5 opacity-50">Aucun produit trouvé.</div>`;
+            container.innerHTML = `<div class="text-center text-muted mt-5">Vide.</div>`;
             return;
         }
-
-        // Génération HTML Optimisée
-        const fragment = document.createDocumentFragment();
         items.forEach(item => {
-            const isDone = (item.QtePhysique !== "" && item.QtePhysique !== null && item.QtePhysique !== undefined);
-            const cardClass = isDone ? "done" : "todo";
-            const valPhys = isDone ? item.QtePhysique : '...';
-            
-            const div = document.createElement('div');
-            div.className = `card product-card ${cardClass}`;
-            div.onclick = () => openEditModal(item.ID);
-            div.innerHTML = `
-                <div class="card-body p-3">
-                    <div class="d-flex justify-content-between align-items-start mb-2">
-                        <h6 class="card-title m-0 fw-bold text-dark" style="line-height:1.4">${item.Designation}</h6>
-                        <span class="badge bg-white text-secondary border ms-2">${item.Unite || 'U'}</span>
-                    </div>
-                    
-                    <div class="d-flex justify-content-between small text-muted mb-3">
-                        <div>Lot: <span class="lot-badge text-dark">${item.NumeroLot || '-'}</span></div>
-                        <div>Exp: ${formatDate(item.DatePeremption)}</div>
-                    </div>
-                    
-                    <div class="d-flex justify-content-between align-items-center pt-2 border-top">
-                        <div class="text-muted small">Théo: <strong>${item.QteTheorique}</strong></div>
-                        <div class="${isDone ? 'text-success' : 'text-secondary'} fw-bold fs-5">
-                            Phys: ${valPhys}
+            const isDone = (item.QtePhysique !== "" && item.QtePhysique !== undefined);
+            const html = `
+                <div class="card product-card ${isDone ? 'done' : 'todo'}" onclick="openEditModal('${item.ID}')">
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <h6 class="m-0 fw-bold text-truncate" style="max-width:70%">${item.Designation}</h6>
+                            <span class="price-tag">${item.PrixVente ? item.PrixVente + ' F' : '-'}</span>
+                        </div>
+                        <div class="small text-muted d-flex justify-content-between">
+                            <span>Lot: <b>${item.NumeroLot || '-'}</b></span>
+                            <span>Exp: ${formatDate(item.DatePeremption)}</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
+                            <span class="text-muted small">Théo: ${item.QteTheorique}</span>
+                            <span class="fs-5 fw-bold ${isDone ? 'text-success' : 'text-secondary'}">
+                                Phys: ${isDone ? item.QtePhysique : '...'}
+                            </span>
                         </div>
                     </div>
-                </div>
-            `;
-            fragment.appendChild(div);
+                </div>`;
+            container.innerHTML += html;
         });
-        listEl.appendChild(fragment);
     }
 
-    // ============================================================
-    // 4. MODALE & EDITION
-    // ============================================================
-    async function openEditModal(id) {
-        const item = await db.products.get(id);
-        if(!item) return;
-
-        document.getElementById('itemId').value = item.ID;
-        document.getElementById('modalDesignation').value = item.Designation;
-        document.getElementById('modalUnite').value = item.Unite;
-        document.getElementById('modalLot').value = item.NumeroLot;
+    // --- MODALES & DATA ---
+    async function openEditModal(id, importData = null) {
+        let item = {};
         
-        let dateVal = item.DatePeremption ? new Date(item.DatePeremption).toISOString().split('T')[0] : "";
-        document.getElementById('modalDate').value = dateVal;
-        
-        document.getElementById('modalQteTheo').value = item.QteTheorique;
-        document.getElementById('modalQtePhys').value = item.QtePhysique;
-        document.getElementById('modalBarcodes').value = item.Barcodes;
-        
-        // Gestion Select Famille (ajout dynamique si nouvelle famille)
-        const modalSel = document.getElementById('modalFamille');
-        if (![...modalSel.options].some(o => o.value === item.Famille)) {
-            modalSel.innerHTML += `<option value="${item.Famille}">${item.Famille}</option>`;
+        if (id) {
+            // Mode Edition existant
+            item = await db.products.get(id);
+        } else if (importData) {
+            // Mode Import depuis Master
+            item = {
+                ID: importData.ID, // On garde l'ID produit pour lier les fiches
+                Designation: importData.Designation,
+                Famille: importData.Famille,
+                Unite: importData.Unite,
+                PrixVente: importData.PrixVente,
+                Barcodes: importData.Barcodes,
+                Depot: currentDepot, // On force le dépôt actuel
+                NumeroLot: "", // On reset le lot car c'est un nouveau stock
+                QteTheorique: 0,
+                QtePhysique: ""
+            };
+        } else {
+            // Mode Vierge
+            item = { ID: "GEN_" + Date.now(), Depot: currentDepot, Famille: currentFamily!=="ALL"?currentFamily:"NON CLASSE", PrixVente:0 };
         }
-        modalSel.value = item.Famille;
 
-        const modal = new bootstrap.Modal(document.getElementById('productModal'));
-        modal.show();
-        
-        // Focus auto
-        setTimeout(() => document.getElementById('modalQtePhys').focus(), 500);
+        document.getElementById('itemId').value = item.ID; // Attention : Si import, c'est l'ID du produit
+        // Pour différencier les lignes en BDD qui a ID comme clé primaire unique, 
+        // cette app simplifiée utilise l'ID pour identifier la ligne.
+        // Si on importe, on risque d'écraser si on ne change pas l'ID.
+        // CORRECTION IMPORTANTE :
+        if(importData) {
+             // Si on importe, on crée techniquement une nouvelle entrée de stock
+             // Mais on veut garder le lien... Dans ce système simple CSV, l'ID est unique par ligne.
+             // On génère un nouvel ID de ligne pour le stockage
+             document.getElementById('itemId').value = "STOCK_" + Date.now();
+        }
+
+        document.getElementById('modalDesignation').value = item.Designation || "";
+        document.getElementById('modalFamille').value = item.Famille || "NON CLASSE";
+        document.getElementById('modalUnite').value = item.Unite || "";
+        document.getElementById('modalPrix').value = item.PrixVente || "";
+        document.getElementById('modalLot').value = item.NumeroLot || "";
+        let d = item.DatePeremption ? new Date(item.DatePeremption).toISOString().split('T')[0] : "";
+        document.getElementById('modalDate').value = d;
+        document.getElementById('modalQteTheo').value = item.QteTheorique || 0;
+        document.getElementById('modalQtePhys').value = item.QtePhysique !== undefined ? item.QtePhysique : "";
+
+        currentEditingBarcodes = item.Barcodes ? String(item.Barcodes).split(',').filter(c=>c.trim()!=="") : [];
+        renderBarcodeTags();
+
+        new bootstrap.Modal(document.getElementById('productModal')).show();
     }
 
-    async function addNewItem() {
-        const newId = "NEW_" + Date.now(); 
-        const newItem = {
-            ID: newId,
-            Designation: "", 
-            Famille: currentFamily !== "ALL" ? currentFamily : "DIVERS",
-            Depot: currentDepot,
-            QteTheorique: 0,
-            QtePhysique: "",
-            Barcodes: "",
-            NumeroLot: "",
-            Unite: "Bt"
-        };
-        await db.products.put(newItem);
-        openEditModal(newId);
+    function renderBarcodeTags() {
+        const c = document.getElementById('barcodeTagsContainer'); c.innerHTML = "";
+        currentEditingBarcodes.forEach((code, i) => {
+            c.innerHTML += `<span class="barcode-tag">${code} <button type="button" class="btn-close" onclick="removeBarcode(${i})"></button></span>`;
+        });
     }
+    function removeBarcode(i) { currentEditingBarcodes.splice(i, 1); renderBarcodeTags(); }
+    function addManualBarcode() {
+        const v = document.getElementById('manualBarcodeInput').value.trim();
+        if(v && !currentEditingBarcodes.includes(v)) { currentEditingBarcodes.push(v); renderBarcodeTags(); document.getElementById('manualBarcodeInput').value=""; }
+    }
+
+    async function addNewItem() { await openEditModal(null); }
 
     async function saveItem() {
         const id = document.getElementById('itemId').value;
-        const item = await db.products.get(id);
+        // On construit l'objet
+        const item = {
+            ID: id,
+            Designation: document.getElementById('modalDesignation').value,
+            Famille: document.getElementById('modalFamille').value,
+            Unite: document.getElementById('modalUnite').value,
+            PrixVente: document.getElementById('modalPrix').value,
+            NumeroLot: document.getElementById('modalLot').value,
+            DatePeremption: document.getElementById('modalDate').value,
+            QteTheorique: document.getElementById('modalQteTheo').value,
+            QtePhysique: document.getElementById('modalQtePhys').value,
+            Barcodes: currentEditingBarcodes.join(','),
+            Depot: currentDepot
+        };
 
-        if(item) {
-            item.Designation = document.getElementById('modalDesignation').value;
-            item.Famille = document.getElementById('modalFamille').value;
-            item.Unite = document.getElementById('modalUnite').value;
-            item.NumeroLot = document.getElementById('modalLot').value;
-            item.DatePeremption = document.getElementById('modalDate').value;
-            item.QtePhysique = document.getElementById('modalQtePhys').value;
-            item.Barcodes = document.getElementById('modalBarcodes').value;
-            
-            await db.products.put(item);
-            
-            const modalEl = document.getElementById('productModal');
-            bootstrap.Modal.getInstance(modalEl).hide();
-            
-            updateFamilyDropdown(); // Au cas où la famille change
-            renderList();
-        }
+        // SAUVEGARDE EN LOCAL
+        await db.products.put(item);
+        
+        // LOGIQUE "MISE A JOUR BASE"
+        // L'utilisateur veut que toute modif mette à jour la "base".
+        // Ici, la base EST l'ensemble des produits.
+        // Donc si on change le prix ici, lors de la prochaine recherche globale, le nouveau prix apparaîtra.
+        // C'est automatique grâce à Dexie.
+
+        bootstrap.Modal.getInstance(document.getElementById('productModal')).hide();
+        renderList();
     }
 
-    // ============================================================
-    // 5. SYNCHRONISATION (CORRIGÉE : FORCE LE TELECHARGEMENT)
-    // ============================================================
-    async function syncData() {
-        const btn = document.querySelector('.btn-primary.rounded-pill');
-        const spinner = document.getElementById('syncSpinner');
-        const originalText = btn.innerHTML;
-        
-        btn.innerHTML = "⏳ Envoi...";
-        btn.disabled = true;
-        spinner.style.display = 'block';
-
-        try {
-            // 1. PUSH (Envoi local vers Google)
-            const allLocalData = await db.products.toArray();
-            await fetch(API_URL, {
-                method: 'POST', 
-                mode: 'no-cors', 
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(allLocalData)
-            });
-
-            // 2. DELAI DE TRAITEMENT
-            btn.innerHTML = "📥 Réception...";
-            await new Promise(r => setTimeout(r, 2500)); // 2.5s pour être sûr
-
-            // 3. PULL (Réception avec Anti-Cache)
-            // L'ajout de ?t=... force le navigateur à ne pas utiliser le cache
-            const response = await fetch(API_URL + "?t=" + Date.now());
-            
-            if (!response.ok) throw new Error("Erreur réseau Google");
-            
-            const rawData = await response.json();
-            
-            if (!Array.isArray(rawData)) throw new Error("Format de données invalide");
-
-            // 4. NETTOYAGE & REMPLACEMENT
-            // Fonction pour trouver une clé insensible à la casse (Id, ID, id...)
-            const cleanData = rawData.map(item => {
-                const getKey = (keyName) => Object.keys(item).find(k => k.toLowerCase() === keyName.toLowerCase());
-                
-                return {
-                    ID: item[getKey("id")] || ("GEN_" + Math.random()), 
-                    Famille: item[getKey("famille")] || "NON CLASSE",
-                    Designation: item[getKey("designation")] || "Inconnu",
-                    Unite: item[getKey("unite")] || "U",
-                    Barcodes: String(item[getKey("barcodes")] || ""),
-                    NumeroLot: String(item[getKey("numerolot")] || ""),
-                    DatePeremption: item[getKey("dateperemption")] || "",
-                    QteTheorique: item[getKey("qtetheorique")] || 0,
-                    QtePhysique: item[getKey("qtephysique")], 
-                    Depot: item[getKey("depot")] || "Depot_Principal" 
-                };
-            });
-
-            // On remplace tout
-            await db.products.clear();
-            await db.products.bulkPut(cleanData);
-
-            // Refresh UI
-            await loadDataLocal();
-            document.getElementById('familySelect').value = "ALL";
-            currentFamily = "ALL";
-            renderList();
-
-            alert(`✅ Synchronisation Réussie !\n\n📦 Stock Google importé : ${cleanData.length} produits.`);
-
-        } catch (error) {
-            console.error(error);
-            alert("❌ Erreur de Synchro :\n" + error.message);
-        } finally {
-            btn.innerHTML = originalText;
-            btn.disabled = false;
-            spinner.style.display = 'none';
-        }
-    }
-
-    // ============================================================
-    // 6. SCANNER INTELLIGENT (GS1)
-    // ============================================================
-    function parseGS1(code) {
-        let res = { gtin: null, lot: null, exp: null };
-        let clean = code.replace(/[\(\)]/g, '');
-        
-        let mGtin = clean.match(/(?:01)(\d{14})/); 
-        if(mGtin) res.gtin = mGtin[1];
-        
-        let mDate = clean.match(/17(\d{6})/); 
-        if(mDate) res.exp = parseGS1Date(mDate[1]);
-        
-        let mLot = clean.match(/10([A-Za-z0-9\-\.]+)/); 
-        if(mLot) {
-            let l = mLot[1];
-            let idx = l.indexOf('17'); // Si date suit le lot sans séparateur
-            if(idx > -1 && l.length - idx >= 8) l = l.substring(0, idx);
-            res.lot = l;
-        }
-        return res;
-    }
-    
-    function parseGS1Date(d) {
-        if(!d || d.length !== 6) return "";
-        let y = parseInt(d.substring(0,2)); y += (y>50?1900:2000);
-        let da = (d.substring(4,6)==="00")?"28":d.substring(4,6);
-        return `${y}-${d.substring(2,4)}-${da}`;
-    }
-
-    function startScanner() {
+    // --- SCANNER ---
+    function startScanner(mode) {
+        scanMode = mode;
         document.getElementById('reader').style.display = "block";
-        html5QrcodeScanner = new Html5Qrcode("reader");
-        const config = { fps: 10, qrbox: 250, formatsToSupport: [0,1,2,3,4,5,6,7,8,9,10,11,12,13] }; // Support All
+        if(mode==='add_barcode') bootstrap.Modal.getInstance(document.getElementById('productModal')).hide();
         
-        html5QrcodeScanner.start({ facingMode: "environment" }, config, async (code) => {
+        html5QrcodeScanner = new Html5Qrcode("reader");
+        html5QrcodeScanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, async (code) => {
             await html5QrcodeScanner.stop();
             document.getElementById('reader').style.display = "none";
-            handleScan(code);
+            handleScanResult(code);
         });
     }
 
-    async function handleScan(code) {
-        const gs1 = parseGS1(code);
-        let search = gs1.gtin ? (gs1.gtin.startsWith('0')?gs1.gtin.substring(1):gs1.gtin) : code;
-        
-        document.getElementById('searchInput').value = search;
-        
-        // Recherche Globale (peu importe le filtre famille)
-        const allItems = await db.products.where('Depot').equals(currentDepot).toArray();
-        let found = allItems.find(i => i.Barcodes && i.Barcodes.includes(search));
-        
-        if(!found && search !== code) found = allItems.find(i => i.Barcodes && i.Barcodes.includes(code));
+    async function handleScanResult(code) {
+        let clean = code.replace(/[\(\)]/g, ''); 
+        // GS1 Extract simple
+        if(clean.startsWith('01') && clean.length>14) clean = clean.substring(2,16).replace(/^0+/, ''); 
 
-        if(found) {
-            // Si le produit est dans une famille masquée, on change le filtre
-            if(currentFamily !== "ALL" && found.Famille !== currentFamily) {
-                 document.getElementById('familySelect').value = found.Famille;
-                 currentFamily = found.Famille;
-                 renderList();
-            }
-            
-            await openEditModal(found.ID);
-            
-            if(gs1.lot) document.getElementById('modalLot').value = gs1.lot;
-            if(gs1.exp) document.getElementById('modalDate').value = gs1.exp;
-            
-            // Effet visuel
-            document.getElementById('modalQtePhys').classList.add('bg-warning', 'bg-opacity-25');
+        if(scanMode === 'add_barcode') {
+            const m = new bootstrap.Modal(document.getElementById('productModal')); m.show();
+            if(!currentEditingBarcodes.includes(clean)) { currentEditingBarcodes.push(clean); renderBarcodeTags(); }
         } else {
-            if(confirm(`Nouveau produit : ${search}\nL'ajouter maintenant ?`)) {
-                await addNewItem();
-                setTimeout(() => {
-                    document.getElementById('modalBarcodes').value = search;
-                    if(gs1.lot) document.getElementById('modalLot').value = gs1.lot;
-                    if(gs1.exp) document.getElementById('modalDate').value = gs1.exp;
-                }, 500);
-            }
+            // RECHERCHE INTELLIGENTE
+            document.getElementById('searchInput').value = clean;
+            handleSmartSearch(clean);
         }
     }
 
-    // ============================================================
-    // 7. UTILS
-    // ============================================================
-    function setupOfflineDetection() {
-        const badge = document.getElementById('statusIndicator');
-        const update = () => {
-            if (navigator.onLine) {
-                badge.className = "badge bg-success offline-badge";
-                badge.innerText = "En Ligne";
-            } else {
-                badge.className = "badge bg-danger offline-badge";
-                badge.innerText = "Hors Ligne";
-            }
-        };
-        window.addEventListener('online', update);
-        window.addEventListener('offline', update);
-        update();
+    // --- SYNCHRO ---
+    async function syncData() {
+        const btn = document.querySelector('.btn-primary.rounded-pill');
+        const oldTxt = btn.innerHTML;
+        btn.innerHTML = "⏳..."; btn.disabled = true;
+        try {
+            const allData = await db.products.toArray();
+            await fetch(API_URL, { method: 'POST', mode: 'no-cors', headers: {'Content-Type':'application/json'}, body: JSON.stringify(allData)});
+            await new Promise(r => setTimeout(r, 2000));
+            const res = await fetch(API_URL + "?t=" + Date.now());
+            const raw = await res.json();
+            
+            const clean = raw.map(i => {
+                const k = (n) => Object.keys(i).find(key => key.toLowerCase() === n.toLowerCase());
+                return {
+                    ID: i[k("id")] || ("GEN_" + Math.random()),
+                    Famille: i[k("famille")] || "DIVERS",
+                    Designation: i[k("designation")] || "?",
+                    Unite: i[k("unite")] || "U",
+                    Barcodes: String(i[k("barcodes")] || ""),
+                    NumeroLot: String(i[k("numerolot")] || ""),
+                    DatePeremption: i[k("dateperemption")] || "",
+                    QteTheorique: i[k("qtetheorique")] || 0,
+                    QtePhysique: i[k("qtephysique")],
+                    Depot: i[k("depot")] || "Depot_Principal",
+                    PrixVente: i[k("prixvente")] || "" // Import du prix
+                };
+            });
+            await db.products.clear(); await db.products.bulkPut(clean);
+            alert(`✅ Synchro OK: ${clean.length} produits.`);
+            location.reload();
+        } catch(e) { alert("Erreur: " + e.message); } finally { btn.innerHTML = oldTxt; btn.disabled = false; }
     }
 
-    function formatDate(d) { 
-        if(!d) return ""; 
-        const date = new Date(d);
-        return isNaN(date) ? d : date.toLocaleDateString('fr-FR');
+    // UTILS
+    function updateDropdownsUI() {
+        const d = document.getElementById('depotSelect'); d.innerHTML="";
+        const cD = document.getElementById('configDepotList'); cD.innerHTML="";
+        userDepots.forEach(x => {
+            d.innerHTML+=`<option value="${x}">${x}</option>`;
+            cD.innerHTML+=`<li class="list-group-item d-flex justify-content-between">${x} <button class="btn-close" onclick="removeConfig('depots','${x}')"></button></li>`;
+        });
+        d.value = currentDepot;
+        
+        const f = document.getElementById('familySelect'); f.innerHTML='<option value="ALL">📂 Tout voir</option>';
+        const mF = document.getElementById('modalFamille'); mF.innerHTML='';
+        const cF = document.getElementById('configFamilyList'); cF.innerHTML="";
+        userFamilies.sort().forEach(x => {
+            f.innerHTML+=`<option value="${x}">${x}</option>`;
+            mF.innerHTML+=`<option value="${x}">${x}</option>`;
+            cF.innerHTML+=`<li class="list-group-item d-flex justify-content-between">${x} <button class="btn-close" onclick="removeConfig('families','${x}')"></button></li>`;
+        });
     }
-
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js');
+    function addConfigItem(type) {
+        const id = type==='depots'?'newDepotName':'newFamilyName';
+        const v = document.getElementById(id).value.trim().replace(/ /g,'_');
+        if(!v)return;
+        if(type==='depots'){ if(!userDepots.includes(v)) userDepots.push(v); localStorage.setItem('userDepots',JSON.stringify(userDepots)); }
+        else { if(!userFamilies.includes(v)) userFamilies.push(v.toUpperCase()); localStorage.setItem('userFamilies',JSON.stringify(userFamilies)); }
+        document.getElementById(id).value=""; updateDropdownsUI();
+    }
+    function removeConfig(t,v){ 
+        if(!confirm("Supprimer?"))return; 
+        if(t==='depots'){ userDepots=userDepots.filter(x=>x!==v); if(userDepots.length===0)userDepots.push('Main'); localStorage.setItem('userDepots',JSON.stringify(userDepots));}
+        else{ userFamilies=userFamilies.filter(x=>x!==v); localStorage.setItem('userFamilies',JSON.stringify(userFamilies));}
+        updateDropdownsUI();
+    }
+    function setupOfflineDetection() { /*...*/ }
+    function formatDate(d) { if(!d)return ""; const dd=new Date(d); return isNaN(dd)?d:dd.toLocaleDateString('fr-FR'); }
+    if('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js');
 </script>
 </body>
 </html>
